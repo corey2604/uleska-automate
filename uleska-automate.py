@@ -4,6 +4,7 @@ import argparse
 import time
 import sys
 
+APPLICATION_PATH = "SecureDesigner/api/v1/applications/"
 
 class issue_info:
     title = ""
@@ -194,10 +195,8 @@ def _main():
 
     args = arg_options.parse_args()
 
-    host = ""
     application = ""  # id
     version = ""  # id
-    token = ""
 
     test_and_compare = False
     test_and_results = False
@@ -234,11 +233,12 @@ def _main():
         print("Debug enabled")
 
     # Grab the host from the command line arguments
-    if args.uleska_host is not None:
-        host = args.uleska_host
+    host = args.uleska_host
 
-        if debug:
-            print("Host: " + host)
+    # Grab the token from the command line arguments
+    token = args.token
+    if debug:
+        print("Token: " + token)
 
     # Grab the application id from the command line arguments
     if args.application_id is not None:
@@ -253,13 +253,6 @@ def _main():
 
         if debug:
             print("Version id: " + version)
-
-    # Grab the token from the command line arguments
-    if args.token is not None:
-        token = args.token
-
-        if debug:
-            print("Token: " + token)
 
     # Set test_and_compare
     if args.test_and_compare:
@@ -851,7 +844,7 @@ def run_app_stats(host, application_name, token, print_json, thresholds):
         }
     )
 
-    GetApplicationsURL = host + "SecureDesigner/api/v1/applications/"
+    GetApplicationsURL = host + APPLICATION_PATH
 
     try:
         StatusResponse = s.request("Get", GetApplicationsURL)
@@ -907,7 +900,6 @@ def run_app_stats(host, application_name, token, print_json, thresholds):
 
     num_vulns = 0
     aggregate_risk = 0
-    aggregate_issue_titles = []
 
     # iterate through versions
     for version in version_infos:
@@ -1026,7 +1018,7 @@ def run_scan_blocking(host, application, version, token, print_json):
     # Kick off a scan
     ScanURL = (
         host
-        + "SecureDesigner/api/v1/applications/"
+        + APPLICATION_PATH
         + application
         + "/versions/"
         + version
@@ -1148,7 +1140,7 @@ def run_scan(host, application, version, token, print_json):
     ##### Kick off a scan
     ScanURL = (
         host
-        + "SecureDesigner/api/v1/applications/"
+        + APPLICATION_PATH
         + application
         + "/versions/"
         + version
@@ -1206,7 +1198,7 @@ def get_reports_list(host, application, version, token, print_json):
 
     GetVersionReportsURL = (
         host
-        + "SecureDesigner/api/v1/applications/"
+        + APPLICATION_PATH
         + application
         + "/versions/"
         + version
@@ -1408,7 +1400,7 @@ def get_reports_dict(host, application, version, token, report):
 
     GetLatestReportsURL = (
         host
-        + "SecureDesigner/api/v1/applications/"
+        + APPLICATION_PATH
         + application
         + "/versions/"
         + version
@@ -1633,7 +1625,7 @@ def compare_report_infos(
             new_issues.append(i)
             json_issues_dict.append(json_issue)
 
-    if new_risk is not 0:
+    if new_risk != 0:
         if not print_json:
             print("\n    New risk in this tookit run    = $" + str(f"{new_risk:,}"))
 
@@ -1740,7 +1732,7 @@ def map_app_name_to_id(host, application_name, token, print_json):
         }
     )
 
-    GetApplicationsURL = host + "SecureDesigner/api/v1/applications/"
+    GetApplicationsURL = host + APPLICATION_PATH
 
     try:
         StatusResponse = s.request("Get", GetApplicationsURL)
@@ -2349,32 +2341,28 @@ def run_get_tools_details(host, token, print_json):
         }
     )
 
-    GetToolsURL = host + "SecureDesigner/api/v1/tools"
+    get_tools_url = host + "SecureDesigner/api/v1/tools"
 
     try:
-        StatusResponse = s.request("Get", GetToolsURL)
+        status_response = s.request("Get", get_tools_url)
     except requests.exceptions.RequestException as err:
         print("Exception getting tools\n" + str(err))
         sys.exit(2)
 
-    if StatusResponse.status_code != 200:
+    if status_response.status_code != 200:
         # Something went wrong, maybe server not up, maybe auth wrong
         print(
             "Non 200 status code returned when getting tools.  Code ["
-            + str(StatusResponse.status_code)
+            + str(status_response.status_code)
             + "]"
         )
         sys.exit(2)
 
-    tools_info = {}
-
     try:
-        tools_info = json.loads(StatusResponse.text)
+        return json.loads(status_response.text)
     except json.JSONDecodeError as jex:
         print("Invalid JSON when getting tools.  Exception: [" + str(jex) + "]")
         sys.exit(2)
-
-    return tools_info
 
 
 def run_map_container_name_to_id(host, connection_name, token, print_json):
