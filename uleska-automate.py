@@ -1,8 +1,15 @@
 import requests
 import json
-import argparse
 import time
 import sys
+
+from application import run_map_app_name_to_id
+from args import get_args
+from container import update_container_image
+from controller.version_controller import VersionController
+from session import make_session
+from tools import get_tools_body
+from version import create_version, get_version, update_version
 
 APPLICATION_PATH = "SecureDesigner/api/v1/applications/"
 
@@ -40,160 +47,7 @@ class version_info:
 
 def _main():
     # Capture command line arguments
-    arg_options = argparse.ArgumentParser(
-        description="Uleska command line interface. To identify the project/pipeline to test you can specify either --application_name and --version_name, or --application and --version (passing GUIDs). (Version 0.2)",
-    )
-    arg_options.add_argument(
-        "--uleska_host",
-        help="URL to the Uleska host (e.g. https://s1.uleska.com/) (note final / is required)",
-        required=True,
-        type=str,
-    )
-    arg_options.add_argument(
-        "--token", help="String for the authentication token", required=True, type=str
-    )
-
-    arg_options.add_argument(
-        "--application_id", help="GUID for the application to reference", type=str
-    )
-    arg_options.add_argument(
-        "--version_id",
-        help="GUID for the application version/pipeline to reference",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--application_name", help="Name for the application to reference", type=str
-    )
-    arg_options.add_argument(
-        "--version_name", help="Name for the version/pipeline to reference", type=str
-    )
-
-    arg_options.add_argument(
-        "--update_sast",
-        help="Add or update a SAST pipeline.  Requires an pre-existing application. See documentation for other settings",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--sast_git",
-        help="Git URL for SAST repo.  Required with --update_sast.",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--sast_username",
-        help="If repo requires authentication, this is the username to use.  Optional with --update_sast.",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--sast_token",
-        help="If repo requires authentication, this is the token value to use.  Optional with --update_sast.",
-        type=str,
-    )
-
-    arg_options.add_argument(
-        "--tools",
-        help="List of tool names to use for this version.  Optional with --update_sast.  Comma separated",
-        type=str,
-    )
-
-    arg_options.add_argument(
-        "--update_container",
-        help="Update a container pipeline.  Requires an pre-existing application/config. See documentation for other settings",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--container_image",
-        help="Name of image to use. Required with --update_container.",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--container_tag",
-        help="Tag to use. Required with --update_container.",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--container_connection",
-        help="Connection name to use for container access. Optional with --update_container.  If not included Docker Hub is assumed.",
-        type=str,
-    )
-
-    arg_options.add_argument(
-        "--test",
-        help="Run tests only for the application and version referenced, do not wait for the results",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--test_and_results",
-        help="Run tests for the application and version referenced, and return the results from the last as JSON",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--test_and_compare",
-        help="Run tests for the application and version referenced, and return any differences in the results from the last test",
-        action="store_true",
-    )
-
-    arg_options.add_argument(
-        "--latest_results",
-        help="Retrieve the latest test results for application and version referenced",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--compare_latest_results",
-        help="Retrieve the latest test results for version and compare",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--print_json",
-        help="Print the relevant output as JSON to stdout",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--get_ids",
-        help="Retrieve GUID for the application_name and version_name supplied",
-        action="store_true",
-    )
-    arg_options.add_argument(
-        "--app_stats",
-        help="Retrieve the latest risk and vulnerabiltiy for the whole application",
-        action="store_true",
-    )
-
-    arg_options.add_argument(
-        "--fail_if_issue_risk_over",
-        help="Causes the CLI to return a failure if any new issue risk is over the integer specified",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--fail_if_risk_over",
-        help="Causes the CLI to return a failure if the risk is over the integer specified",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--fail_if_risk_change_over",
-        help="Causes the CLI to return a failure if the percentage change of increased risk is over the integer specified. Requires 'test_and_compare' or 'compare_latest_results' functions",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--fail_if_issues_over",
-        help="Causes the CLI to return a failure if the number of issues is over the integer specified",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--fail_if_issues_change_over",
-        help="Causes the CLI to return a failure if the percentage change in new issues is over the integer specified.  Requires 'test_and_compare' or 'compare_latest_results' function",
-        type=str,
-    )
-    arg_options.add_argument(
-        "--fail_if_CVSS_over",
-        help="Causes the CLI to return a failure if the any new issue has a CVSS over the integer specified.  Requires 'test_and_compare' or 'compare_latest_results' function",
-        type=str,
-    )
-
-    arg_options.add_argument(
-        "--debug", help="Prints debug messages", action="store_true"
-    )
-
-    args = arg_options.parse_args()
+    args = get_args()
 
     application = ""  # id
     version = ""  # id
@@ -203,7 +57,6 @@ def _main():
     test = False
     latest_results = False
     compare_latest_results = False
-    add_version = False
     get_ids = False
     app_stats = False
     print_json = False
@@ -211,8 +64,6 @@ def _main():
     update_container = False
 
     sast_git = ""
-    sast_username = ""
-    sast_token = ""
 
     tools = ""
 
@@ -227,18 +78,20 @@ def _main():
 
     debug = False
 
-    # Set debug
-    if args.debug:
-        debug = True
-        print("Debug enabled")
-
     # Grab the host from the command line arguments
     host = args.uleska_host
+    make_session(host)
 
     # Grab the token from the command line arguments
     token = args.token
     if debug:
         print("Token: " + token)
+
+    # Set debug
+    if args.debug:
+        debug = True
+        print("Debug enabled")
+
 
     # Grab the application id from the command line arguments
     if args.application_id is not None:
@@ -446,43 +299,14 @@ def _main():
             sys.exit(2)
 
         # map application_name to an id
-        application = run_map_app_name_to_id(host, application_name, token, print_json)
+        application = run_map_app_name_to_id(host, application_name, print_json)
 
         # attempt to get the version id for the passed version name. This will return either the ID if it exists, or "" if it doesn't
         version = run_check_for_existing_version(
             host, application_name, version_name, token, print_json
         )
 
-        # check the tools to use (these may be being updated)
-        tools_list = tools.split(",")
-
-        # get list of tools & details from the system as JSON
-        system_tools_list = run_get_tools_details(host, token, print_json)
-
-        # TODO - right now we don't check that
-        #  a) if any tool supplied by user in tools_list doesn't match the system tools list
-        #  b) we report on that (error to the user) or how to handle it
-
-        # create a store for the tools we're going to add
-        tools_to_add = []
-
-        # build the tools body up so we can submit with our version creation/update
-        # iterate through the system_tools_list we got and extract matching info
-        for tool in system_tools_list:
-
-            if tool["title"] in tools_list:
-                # tool.remove('icon') # we don't use this
-
-                this_tool = {}
-                this_tool["toolName"] = tool["name"]
-
-                orig_string = json.dumps(tool)
-
-                this_tool["toolJson"] = orig_string
-
-                tools_to_add.append(this_tool)
-
-            # What to do if a tool is supplied that is not in the list? TODO
+        tools_to_add = get_tools_body(host, tools)
 
         # check if version_name exists for the app
         if version == "":
@@ -495,46 +319,27 @@ def _main():
                 )
                 sys.exit(2)
 
-            if sast_username != "":
-                # user has passed sast_username, which means they'll need to pass the token
-
-                if sast_token == "":
+            if args.sast_username is not None and args.sast_token is None:
                     print(
                         "Error, when passing --sast_username to setup authentication, --sast_token is required"
                     )
                     sys.exit(2)
 
-                # "user has passed both sast_username and sast_token
-                version = run_create_version_with_credentials(
-                    host,
-                    application,
-                    version_name,
-                    token,
-                    print_json,
-                    sast_git,
-                    sast_username,
-                    sast_token,
-                    tools_to_add,
-                )
-
-            else:
-                # user has not passed sast_username, so assume no credentials needed for this repo
-                version = run_create_version(
-                    host,
-                    application,
-                    version_name,
-                    token,
-                    print_json,
-                    sast_git,
-                    tools_to_add,
-                )
-
+            # "user has passed both sast_username and sast_token
+            version = create_version(
+                host,
+                application,
+                version_name,
+                print_json,
+                sast_git,
+                sast_username,
+                sast_token,
+                tools_to_add,
+            )
         else:
-
-            version_data = {}
             # version does exist, so get the current info (as JSON), and update it
-            version_data = run_get_verison_info(
-                host, application, version, token, print_json
+            version_data = get_version(
+                host, application, version
             )
 
             # if sast_git was supplied, update this
@@ -556,62 +361,17 @@ def _main():
                 version_data["scmConfiguration"]["secret"] = sast_token
 
             # update the version
-            run_update_version(
+            update_version(
                 host,
                 application,
                 version,
-                token,
-                print_json,
                 version_data,
                 tools_to_add,
             )
 
     elif update_container:
         # when update_container is called, the container config will be updated
-
-        # check we have application_name and version_name (required)
-        if application_name == "" or version_name == "":
-            print(
-                "Error, for --update_container both --application_name and --version_name are required."
-            )
-            sys.exit(2)
-
-        # check we have container_image and container_tag (required)
-        if container_image == "" or container_tag == "":
-            print(
-                "Error, for --update_container both --container_image and --container_tag are required."
-            )
-            sys.exit(2)
-
-        # map application_name to an id
-        application = run_map_app_name_to_id(host, application_name, token, print_json)
-
-        # attempt to get the version id for the passed version name. This will return either the ID if it exists, or "" if it doesn't
-        version = run_check_for_existing_version(
-            host, application_name, version_name, token, print_json
-        )
-
-        connection_id = ""
-
-        # check if a connection was specified, if so, get the corresponding id
-        if container_connection != "":
-            connection_id = run_map_container_name_to_id(
-                host, container_connection, token, print_json
-            )
-        else:
-            connection_id = "null"
-
-        # update the container config
-        run_update_container_config(
-            host,
-            application,
-            version,
-            container_image,
-            container_tag,
-            connection_id,
-            token,
-            print_json,
-        )
+        update_container_image(application_name, version_name,  container_image, container_tag, host, token, print_json, container_connection)
 
     elif not app_stats and (application_name != "" or version_name != ""):
         if not print_json:
@@ -649,7 +409,7 @@ def _main():
 
 def run_test_and_results(host, application, version, token, print_json, thresholds):
 
-    # First run a new scan in blocking mode (so we can check the results afterwards
+    # First run a new scan in blocking mode (so we can check the results afterwards)
     run_scan_blocking(host, application, version, token, print_json)
 
     reports = get_reports_list(host, application, version, token, print_json)
@@ -1720,77 +1480,6 @@ def compare_report_infos(
         sys.exit(1)
 
 
-def map_app_name_to_id(host, application_name, token, print_json):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    GetApplicationsURL = host + APPLICATION_PATH
-
-    try:
-        StatusResponse = s.request("Get", GetApplicationsURL)
-    except requests.exceptions.RequestException as err:
-        print("Exception getting applications\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when getting applications.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    try:
-        application_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print(
-            "Invalid JSON when extracting applications.  Exception: [" + str(jex) + "]"
-        )
-        sys.exit(2)
-
-    application_id = ""
-
-    for application in application_info:
-
-        if "name" in application:
-
-            if application["name"] == application_name:
-                # We have found the application, record the GUID
-                application_id = application["id"]
-                if not print_json:
-                    print(
-                        "Application ID found for ["
-                        + application_name
-                        + "]: "
-                        + application_id
-                    )
-
-                break
-
-    if application_id == "":
-        # we didn't find app id, so return a failure
-        print(
-            "Failed to find app id: application name ["
-            + application_name
-            + "], id ["
-            + application_id
-            + "]"
-        )
-        print("Failing")
-        sys.exit(2)
-
-    return application_id
-
-
 def map_app_name_and_version_to_ids(
     host, application_name, version_name, token, print_json
 ):
@@ -1907,89 +1596,6 @@ def map_app_name_and_version_to_ids(
     return results
 
 
-def run_map_app_name_to_id(host, application_name, token, print_json):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    GetApplicationsURL = host + "SecureDesigner/api/v1/applications/"
-
-    try:
-        StatusResponse = s.request("Get", GetApplicationsURL)
-    except requests.exceptions.RequestException as err:
-        print("Exception getting applications and versions\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when getting applications and versions.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    application_and_versions_info = {}
-
-    try:
-        application_and_versions_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print(
-            "Invalid JSON when extracting applications and versions.  Exception: ["
-            + str(jex)
-            + "]"
-        )
-        sys.exit(2)
-
-    application_id = ""
-    version_id = ""
-
-    for application in application_and_versions_info:
-
-        if "name" in application:
-
-            if application["name"] == application_name:
-                # We have found the application, record the GUID
-                application_id = application["id"]
-                if not print_json:
-                    print(
-                        "Application ID found for ["
-                        + application_name
-                        + "]: "
-                        + application_id
-                    )
-
-    # check ""
-    if application_id == "":
-        # we didn't find one of the ids, so return a failure
-        print(
-            "Failed to find id for application name ["
-            + application_name
-            + "], id ["
-            + application_id
-            + "]"
-        )
-        sys.exit(2)
-
-    if not print_json:
-        print(
-            "Mapped name to id: application name ["
-            + application_name
-            + "], id ["
-            + application_id
-            + "]"
-        )
-
-    return application_id
-
-
 def run_check_for_existing_version(
     host, application_name, version_name, token, print_json
 ):
@@ -2074,447 +1680,6 @@ def run_check_for_existing_version(
         )
 
     return version_id
-
-
-def run_create_version_with_credentials(
-    host,
-    application,
-    version_name,
-    token,
-    print_json,
-    sast_git,
-    sast_username,
-    sast_token,
-    tools_to_add,
-):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    AddVersionURL = (
-        host + "SecureDesigner/api/v1/applications/" + application + "/versions"
-    )
-
-    payload = (
-        '{"name":"'
-        + version_name
-        + '","forceCookies":false,"roles":[],"webPageList":[],"tools":[],"reports":[],"actions":[],"scmConfiguration":{"useUpload":false,"authenticationType":"USER_PASS","address":"'
-        + sast_git
-        + '","identity":"'
-        + sast_username
-        + '","secret":"'
-        + sast_token
-        + '"}}'
-    )
-
-    payload_json = json.loads(payload)
-
-    payload_json["tools"] = tools_to_add
-
-    # print( "About to send " + json.dumps (payload_json))
-
-    try:
-        StatusResponse = s.request("POST", AddVersionURL, json=payload_json)
-    except requests.exceptions.RequestException as err:
-        print("Exception adding version\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 201:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 201 status code returned when adding version.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    new_version_info = {}
-
-    try:
-        new_version_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print("Invalid JSON when adding new version.  Exception: [" + str(jex) + "]")
-        sys.exit(2)
-
-    version_id = ""
-
-    if "id" in new_version_info:
-        version_id = new_version_info["id"]
-
-        if not print_json:
-            print(
-                "New version created: name ["
-                + version_name
-                + "], id ["
-                + version_id
-                + "]"
-            )
-
-    else:
-        print("Error, no version id returned when creating new version")
-        exit(2)
-
-    return version_id
-
-
-def run_create_version(
-    host, application, version_name, token, print_json, sast_git, tools_to_add
-):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    AddVersionURL = (
-        host + "SecureDesigner/api/v1/applications/" + application + "/versions"
-    )
-
-    payload = (
-        '{"name":"'
-        + version_name
-        + '","forceCookies":false,"roles":[],"webPageList":[],"tools":[],"reports":[],"actions":[],"scmConfiguration":{"useUpload":false,"authenticationType":"UNAUTHENTICATED","address":"'
-        + sast_git
-        + '"}}'
-    )
-
-    payload_json = json.loads(payload)
-
-    payload_json["tools"] = tools_to_add
-
-    try:
-        StatusResponse = s.request("POST", AddVersionURL, json=payload_json)
-    except requests.exceptions.RequestException as err:
-        print("Exception adding version\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 201:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 201 status code returned when adding version.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    new_version_info = {}
-
-    try:
-        new_version_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print("Invalid JSON when adding new version.  Exception: [" + str(jex) + "]")
-        sys.exit(2)
-
-    version_id = ""
-
-    if "id" in new_version_info:
-        version_id = new_version_info["id"]
-
-        if not print_json:
-            print(
-                "New version created: name ["
-                + version_name
-                + "], id ["
-                + version_id
-                + "]"
-            )
-
-    else:
-        print("Error, no version id returned when creating new version")
-        exit(2)
-
-    return version_id
-
-
-def run_get_verison_info(host, application, version, token, print_json):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    GetVersionURL = (
-        host
-        + "SecureDesigner/api/v1/applications/"
-        + application
-        + "/versions/"
-        + version
-    )
-
-    try:
-        StatusResponse = s.request("Get", GetVersionURL)
-    except requests.exceptions.RequestException as err:
-        print("Exception getting version\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 201 status code returned when getting version.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    version_info = {}
-
-    try:
-        version_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print("Invalid JSON when adding new version.  Exception: [" + str(jex) + "]")
-        sys.exit(2)
-
-    return version_info
-
-
-def run_update_version(
-    host, application, version, token, print_json, version_data, tools_to_add
-):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    UpdateVersionURL = (
-        host
-        + "SecureDesigner/api/v1/applications/"
-        + application
-        + "/versions/"
-        + version
-    )
-
-    payload_json = version_data
-
-    payload_json["tools"] = tools_to_add
-
-    try:
-        StatusResponse = s.request("PUT", UpdateVersionURL, json=payload_json)
-    except requests.exceptions.RequestException as err:
-        print("Exception updating version\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when updating version.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    if not print_json:
-        print("Updated version configuration")
-
-
-def run_get_tools_details(host, token, print_json):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    get_tools_url = host + "SecureDesigner/api/v1/tools"
-
-    try:
-        status_response = s.request("Get", get_tools_url)
-    except requests.exceptions.RequestException as err:
-        print("Exception getting tools\n" + str(err))
-        sys.exit(2)
-
-    if status_response.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when getting tools.  Code ["
-            + str(status_response.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    try:
-        return json.loads(status_response.text)
-    except json.JSONDecodeError as jex:
-        print("Invalid JSON when getting tools.  Exception: [" + str(jex) + "]")
-        sys.exit(2)
-
-
-def run_map_container_name_to_id(host, connection_name, token, print_json):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    GetConnectionsURL = host + "SecureDesigner/api/v1/connections/"
-
-    try:
-        StatusResponse = s.request("Get", GetConnectionsURL)
-    except requests.exceptions.RequestException as err:
-        print("Exception getting connections\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when getting connections.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    connections_info = {}
-
-    try:
-        connections_info = json.loads(StatusResponse.text)
-    except json.JSONDecodeError as jex:
-        print(
-            "Invalid JSON when extracting connections.  Exception: [" + str(jex) + "]"
-        )
-        sys.exit(2)
-
-    connection_id = ""
-
-    for connection_config in connections_info:
-
-        if "toolName" in connection_config:
-
-            if connection_config["toolName"] == connection_name:
-                # We have found the connection, record the GUID
-                connection_id = connection_config["id"]
-                if not print_json:
-                    print(
-                        "Connection ID found for ["
-                        + connection_name
-                        + "]: "
-                        + connection_id
-                    )
-
-    # check ""
-    if connection_id == "":
-        # we didn't find one of the ids, so return a failure
-        print(
-            "Failed to find id for connection name ["
-            + connection_name
-            + "], id ["
-            + connection_id
-            + "]"
-        )
-        sys.exit(2)
-
-    if not print_json:
-        print(
-            "Mapped connection name to id: connection name ["
-            + connection_name
-            + "], id ["
-            + connection_id
-            + "]"
-        )
-
-    return connection_id
-
-
-def run_update_container_config(
-    host,
-    application,
-    version,
-    container_image,
-    container_tag,
-    connection_id,
-    token,
-    print_json,
-):
-
-    s = requests.Session()
-
-    s.headers.update(
-        {
-            "Content-Type": "application/json",
-            "cache-control": "no-cache",
-            "Authorization": "" + token,
-        }
-    )
-
-    UpdateVersionContainerURL = (
-        host
-        + "SecureDesigner/api/v1/applications/"
-        + application
-        + "/versions/"
-        + version
-        + "/container-image"
-    )
-
-    if connection_id == "null":
-        payload = (
-            '{"name":"'
-            + container_image
-            + '","tag":"'
-            + container_tag
-            + '","connectionId":'
-            + connection_id
-            + "}"
-        )
-    else:
-        payload = (
-            '{"name":"'
-            + container_image
-            + '","tag":"'
-            + container_tag
-            + '","connectionId":"'
-            + connection_id
-            + '"}'
-        )
-
-    payload_json = json.loads(payload)
-
-    try:
-        StatusResponse = s.request("PUT", UpdateVersionContainerURL, json=payload_json)
-    except requests.exceptions.RequestException as err:
-        print("Exception updating version\n" + str(err))
-        sys.exit(2)
-
-    if StatusResponse.status_code != 200:
-        # Something went wrong, maybe server not up, maybe auth wrong
-        print(
-            "Non 200 status code returned when updating container config.  Code ["
-            + str(StatusResponse.status_code)
-            + "]"
-        )
-        sys.exit(2)
-
-    if not print_json:
-        print("Updated container configuration")
 
 
 if __name__ == "__main__":
