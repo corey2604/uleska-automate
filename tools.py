@@ -1,7 +1,7 @@
 import json
 import sys
 
-from controller.tools_controller import ToolsController
+from controller.tool_controller import ToolController
 
 
 def get_tools_body(host, tools):
@@ -38,7 +38,7 @@ def get_tools_body(host, tools):
 
 
 def __get_system_tools(host: str):
-    response = ToolsController.get_tools(host)
+    response = ToolController.get_tools(host)
     try:
         return json.loads(response.text)
     except json.JSONDecodeError as jex:

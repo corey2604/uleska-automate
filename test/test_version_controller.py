@@ -26,7 +26,7 @@ class TestVersionController(unittest.TestCase):
         # then
         self.assertEqual(mock_response, result)
 
-    def test_get_applications_handles_non_successful_response(self):
+    def test_create_version_handles_non_successful_response(self):
         # given
         host = "https://unittest.uleska.com"
         application_id = "c69b3759-2003-45b5-b4a3-55e549a405d2"

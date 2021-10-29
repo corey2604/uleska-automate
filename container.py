@@ -3,10 +3,9 @@ import sys
 
 from stripe.http_client import requests
 
-from application import run_map_app_name_to_id
+from application import get_app_id_from_name
 from controller.application_controller import ApplicationController
 from controller.container_image_controller import ContainerImageController
-from session import get_session
 
 
 def update_container_image(application_name, version_name, container_image, container_tag, host, token, print_json, container_connection):
@@ -27,7 +26,7 @@ def update_container_image(application_name, version_name, container_image, cont
         sys.exit(2)
 
     # map application_name to an id
-    application = run_map_app_name_to_id(host, application_name, token, print_json)
+    application = get_app_id_from_name(host, application_name, token, print_json)
 
     # attempt to get the version id for the passed version name. This will return either the ID if it exists, or "" if it doesn't
     version = run_check_for_existing_version(

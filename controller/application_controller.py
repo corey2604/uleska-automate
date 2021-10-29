@@ -16,6 +16,7 @@ class ApplicationController:
             print("Exception getting applications:\n" + str(err))
             raise err
 
+
 class ApplicationEndpoint:
     """Applications URL
     e.g. GET /applications

@@ -1,7 +1,7 @@
 import unittest
 
 import requests
-from mockito import unstub, when, mock, verify, ANY, patch
+from mockito import unstub, when, mock
 
 from controller.application_controller import ApplicationController
 

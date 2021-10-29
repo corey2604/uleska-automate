@@ -3,7 +3,7 @@ import requests
 from session import get_session
 
 
-class ToolsController:
+class ToolController:
     @staticmethod
     def get_tools(host: str):
         try:

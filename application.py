@@ -4,11 +4,11 @@ import sys
 from controller.application_controller import ApplicationController
 
 
-def run_map_app_name_to_id(host, application_name, print_json):
+def get_app_id_from_name(host, application_name, print_json):
     response = ApplicationController.get_applications(host)
 
     try:
-        application_and_versions_info = json.loads(response.text)
+        application_and_versions_info = json.loads(response.text())
     except json.JSONDecodeError as jex:
         print(
             "Invalid JSON when extracting applications and versions.  Exception: ["

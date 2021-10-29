@@ -3,10 +3,9 @@ import json
 import time
 import sys
 
-from application import run_map_app_name_to_id
+from application import get_app_id_from_name
 from args import get_args
 from container import update_container_image
-from controller.version_controller import VersionController
 from session import make_session
 from tools import get_tools_body
 from version import create_version, get_version, update_version
@@ -52,45 +51,22 @@ def _main():
     application = ""  # id
     version = ""  # id
 
-    test_and_compare = False
-    test_and_results = False
-    test = False
-    latest_results = False
-    compare_latest_results = False
-    get_ids = False
-    app_stats = False
-    print_json = False
-    update_sast = False
-    update_container = False
-
-    sast_git = ""
-
-    tools = ""
-
-    container_image = ""
-    container_tag = ""
-    container_connection = ""
-
     thresholds = failure_thresholds()
-
-    application_name = ""
-    version_name = ""
-
-    debug = False
 
     # Grab the host from the command line arguments
     host = args.uleska_host
     make_session(host)
 
-    # Grab the token from the command line arguments
-    token = args.token
-    if debug:
-        print("Token: " + token)
-
     # Set debug
     if args.debug:
         debug = True
         print("Debug enabled")
+
+
+    # Grab the token from the command line arguments
+    token = args.token
+    if debug:
+        print("Token: " + token)
 
 
     # Grab the application id from the command line arguments
@@ -284,7 +260,7 @@ def _main():
         if debug:
             print("fail_if_CVSS_over: " + str(thresholds.fail_if_CVSS_over))
 
-    if app_stats and application_name != "":
+    if app_stats and application_name is not None:
         # user is requesting app results (therefore won't pass an individual version)
         pass
 
@@ -292,14 +268,14 @@ def _main():
         # when update_sast is called, the version_name will be checked, updated, or added
 
         # check we have application_name and version_name (required)
-        if application_name == "" or version_name == "":
+        if application_name is None or version_name is None:
             print(
                 "Error, for --update_sast both --application_name and --version_name are required."
             )
             sys.exit(2)
 
         # map application_name to an id
-        application = run_map_app_name_to_id(host, application_name, print_json)
+        application = get_app_id_from_name(host, application_name, print_json)
 
         # attempt to get the version id for the passed version name. This will return either the ID if it exists, or "" if it doesn't
         version = run_check_for_existing_version(
@@ -312,7 +288,7 @@ def _main():
         if version == "":
 
             # this version_name doesn't exist, create it depending on authentication needed
-            if sast_git == "":
+            if sast_git is not None:
                 # if creating a new version, we need the git URL, return an error
                 print(
                     "Error, when passing --update_sast for a new version, --sast_git URL is required"
@@ -343,13 +319,13 @@ def _main():
             )
 
             # if sast_git was supplied, update this
-            if sast_git != "":
+            if sast_git is not None:
                 # "updating sast_git
 
                 version_data["scmConfiguration"]["address"] = sast_git
 
             # if username was passed, update it
-            if sast_username != "":
+            if sast_username is not None:
                 # updating username
                 version_data["scmConfiguration"]["identity"] = sast_username
                 version_data["scmConfiguration"]["authenticationType"] = "USER_PASS"
@@ -373,7 +349,7 @@ def _main():
         # when update_container is called, the container config will be updated
         update_container_image(application_name, version_name,  container_image, container_tag, host, token, print_json, container_connection)
 
-    elif not app_stats and (application_name != "" or version_name != ""):
+    elif not app_stats and (application_name is not None or version_name is not None):
         if not print_json:
             print("Application or version name passed, looking up ids...")
 
