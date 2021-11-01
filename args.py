@@ -1,7 +1,8 @@
 import argparse
 
 
-def get_args():
+def get_args() -> dict:
+    """Gets the arguments for the Uleska CLI"""
     arg_options = argparse.ArgumentParser(
         description="Uleska command line interface. To identify the project/pipeline to test you can specify either --application_name and --version_name, or --application and --version (passing GUIDs). (Version 0.2)",
     )

@@ -4,7 +4,17 @@ import sys
 from controller.application_controller import ApplicationController
 
 
-def get_app_id_from_name(host, application_name, print_json):
+def get_app_id_from_name(host: str, application_name: str, print_json : bool) -> str:
+    """Finds an id of an application when given a name of the application
+
+    Parameters:
+    host (str): Address of the uleksa instance
+    application_name (str): The name of the application to look for
+    print_json (bool): If true puts the JSON output to standard output
+
+    Returns:
+    str: The application id in UUID format
+    """
     response = ApplicationController.get_applications(host)
 
     try:
