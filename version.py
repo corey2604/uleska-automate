@@ -5,20 +5,43 @@ from controller.version_controller import VersionController
 
 
 def create_version(
-        host,
-        application,
-        version_name,
-        print_json,
-        sast_git,
-        sast_username,
-        sast_token,
-        tools_to_add,
-):
+        host : str,
+        application : str,
+        version_name : str,
+        print_json : bool,
+        sast_git : str,
+        sast_username : str,
+        sast_token : str,
+        tools_to_add : list,
+) -> str:
+    """Create a new version
+    Parameters:
+        host (str): Address of the uleksa instance
+        application (str): The id of the application to attach the new version to
+        version_name (str): The name of the version to create
+        print_json (bool): If true puts the JSON output to standard output
+        sast_git (str): Git address of the source code
+        sast_username (str): Git username of the source code
+        sast_token (str): Git token or password of the source code
+        tools_to_add (list): Tools to run when scanning this version 
+
+    Returns:
+        str: The id of the version just made in UUID format
+    """
     payload = __build_payload_json(version_name, sast_git, tools_to_add, sast_username, sast_token)
     return __create_version(host, application, payload, print_json, version_name)
 
 
-def get_version(host, application, version):
+def get_version(host : str, application : str, version : str) -> dict:
+    """Finds a version
+    Parameters:
+        host (str): Address of the uleksa instance
+        application (str): The id of the application
+        version (str): The id of the version
+
+    Returns:
+        dict: The Version in a dictionary 
+    """
     response = VersionController.get_version(host, application, version)
 
     try:
@@ -31,8 +54,16 @@ def get_version(host, application, version):
 
 
 def update_version(
-        host, application, version, version_data, tools_to_add
-):
+        host : str, application : str, version : str, version_data : dict, tools_to_add : list
+) -> None:
+    """Updates a version
+    Parameters:
+        host (str): Address of the uleksa instance
+        application (str): The id of the application
+        version (str): The id of the version
+        version_data (dict): Data that will be updated
+        tools_to_add (list): Tools to run when scanning this version
+    """
     payload_json = version_data
     payload_json["tools"] = tools_to_add
     VersionController.update_version(host, application, version, payload_json)
